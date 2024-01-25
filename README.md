@@ -84,7 +84,11 @@ Run the script from the command line, providing the necessary arguments to confi
 
 ## Notes
 
-- **Logging**: All operations are logged to the `beekeeper.log` file. This file contains information about the script's operations, including files deleted and potential errors encountered.
+- **File age**: File age is per default determined by its last modification time.
+- **Logging**: All operations are logged to the `beekeeper.log` file. This file contains information about the scripts operations, including files deleted and potential errors encountered.
+- **Determining file age based on filename**: When the `--use-filename` option is used, the script determines the age of a file based on a date in its name instead of the file last modification time. Script supports the following date formats in file names:
+  - `YYYYMMDD` (e.g., `backup_20240101.log`)
+  - `YYYY-MM-DD` (e.g., `backup_2024-01-01.log`)
 
 ## License
 
