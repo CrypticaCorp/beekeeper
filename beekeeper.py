@@ -22,7 +22,6 @@ def setup_logging(log_level):
         for handler in logger.handlers:
             handler.setLevel(log_level)
 
-
 def get_week_num(file_date):
     return file_date.isocalendar()[1]
 
@@ -41,9 +40,8 @@ def get_most_recent_in_periods(period_files):
             most_recent_files.append(files[-1])
     return most_recent_files
 
-def delete_old_backups(filepath, dry_run=False, use_filename=False, recursive=False, clean_folders=False, follow_symlinks=False,
-                       max_age_daily=30, max_age_weekly=365, max_age_monthly=1095, max_age_yearly=3*365, log_level='INFO'):
-    setup_logging(log_level)
+def delete_old_backups(args):
+    setup_logging(getattr(logging, args.log_level))
 
     files_deleted = 0
     potential_deletes = 0
@@ -51,13 +49,33 @@ def delete_old_backups(filepath, dry_run=False, use_filename=False, recursive=Fa
     total_files = 0
     deleted_files = []
 
+    filepath = args.filepath
+    dry_run = args.dry_run
+    use_filename = args.use_filename
+    recursive = args.recursive
+    clean_folders = args.clean_folders
+    follow_symlinks = args.follow_symlinks
+    max_age_daily = args.max_age_daily
+    max_age_weekly = args.max_age_weekly
+    max_age_monthly = args.max_age_monthly
+    max_age_yearly = args.max_age_yearly
+
     if recursive:
         all_files = []
-        for dirpath, _, filenames in os.walk(filepath, followlinks=follow_symlinks):  # Handle follow_symlinks
+        for dirpath, _, filenames in os.walk(filepath, followlinks=follow_symlinks):
             for filename in filenames:
-                all_files.append(os.path.join(dirpath, filename))
+                file_path = os.path.join(dirpath, filename)
+                all_files.append((file_path, os.path.getmtime(file_path)))
     else:
-        all_files = [os.path.join(filepath, f) for f in os.listdir(filepath) if os.path.isfile(os.path.join(filepath, f))]
+        all_files = [(os.path.join(filepath, f), os.path.getmtime(os.path.join(filepath, f))) 
+                    for f in os.listdir(filepath) 
+                    if os.path.isfile(os.path.join(filepath, f))]
+
+    # Sort the files by modification time, newest first
+    all_files.sort(key=lambda x: x[1], reverse=True)
+
+    # Extract file paths, discard modification times
+    all_files = [file[0] for file in all_files]
 
     week_files = defaultdict(list)
     month_files = defaultdict(list)
@@ -118,10 +136,10 @@ def delete_old_backups(filepath, dry_run=False, use_filename=False, recursive=Fa
                     logging.error(f"Error deleting file: {file} - {str(e)}")
 
     if clean_folders and recursive:
-        for root, dirs, files in os.walk(filepath, topdown=False, followlinks=follow_symlinks):  # Handle follow_symlinks
+        for root, dirs, files in os.walk(filepath, topdown=False, followlinks=follow_symlinks):
             for name in dirs:
                 dir_path = os.path.join(root, name)
-                if not os.listdir(dir_path):  # Check if directory is empty
+                if not os.listdir(dir_path):
                     if dry_run:
                         print(f"Would remove empty directory: {dir_path}")
                     else:
@@ -134,23 +152,7 @@ def delete_old_backups(filepath, dry_run=False, use_filename=False, recursive=Fa
 
     return total_files, files_deleted, potential_deletes, errors, preserved_files
 
-def generate_preservation_summary(max_age_daily, max_age_weekly, max_age_monthly, max_age_yearly):
-    summary = [
-        f"Daily backups preserved for the last {max_age_daily} days.",
-        f"Weekly backups preserved for files older than {max_age_daily} days and up to {max_age_weekly} days.",
-        f"Monthly backups preserved for files older than {max_age_weekly} days and up to {max_age_monthly} days."
-    ]
-
-    if max_age_yearly > max_age_monthly:
-        summary.append(f"Yearly backups preserved for files older than {max_age_monthly} days and up to {max_age_yearly} days.")
-    else:
-        summary.append(f"No yearly backups are preserved beyond {max_age_monthly} days.")
-
-    summary.append(f"Files older than {max_age_yearly} days are not preserved.")
-
-    return "\n".join(summary)
-
-def main():
+def parse_arguments():
     parser = argparse.ArgumentParser(
         description='''BeeKeeper efficiently manages and deletes backups, adhering to a configurable Grandfather-Father-Son (GFS) retention policy.
 It offers precise control over backup retention periods across different levels (daily, weekly, monthly, yearly) and
@@ -168,32 +170,14 @@ providing a robust solution for optimizing disk space and maintaining essential 
     parser.add_argument('--max-age-monthly', type=int, default=1095, metavar='DAYS', help='Maximum age for monthly backups (default: 1095)')
     parser.add_argument('--max-age-yearly', type=int, default=3*365, metavar='DAYS', help='Maximum age for yearly backups (default: 3*365)')
     parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], help='Set the logging level (default: INFO)')
-
     args = parser.parse_args()
 
     if args.max_age_daily > args.max_age_weekly or args.max_age_weekly > args.max_age_monthly or args.max_age_monthly > args.max_age_yearly:
         parser.error("Age thresholds must be increasing (daily < weekly < monthly < yearly)")
+    
+    return args, parser
 
-    setup_logging(getattr(logging, args.log_level))  # Use the log level from args
-
-    if not args.filepath:
-        parser.print_help()
-        parser.exit()
-
-    total_files, deleted_count, potential_deletes, errors, preserved_files = delete_old_backups(
-        args.filepath,
-        args.dry_run,
-        args.use_filename,
-        args.recursive,
-        args.clean_folders,
-        args.follow_symlinks,
-        args.max_age_daily,
-        args.max_age_weekly,
-        args.max_age_monthly,
-        args.max_age_yearly,
-        args.log_level
-    )
-
+def print_summary(total_files, deleted_count, potential_deletes, errors, preserved_files, args):
     if args.dry_run:
         print(f"Total files scanned: {total_files}")
         print(f"Matched files: {len(preserved_files)}")
@@ -212,14 +196,16 @@ providing a robust solution for optimizing disk space and maintaining essential 
     print(f"- Clean empty folders: {'Yes' if args.clean_folders else 'No'}")
     print(f"- Follow symbolic links: {'Yes' if args.follow_symlinks else 'No'}")
 
-    preservation_summary = generate_preservation_summary(
-        args.max_age_daily,
-        args.max_age_weekly,
-        args.max_age_monthly,
-        args.max_age_yearly
-    )
-    print("\nDefined backup policy:\n──────────────────────")
-    print(preservation_summary)
+def main():
+    args, parser = parse_arguments()
+    setup_logging(getattr(logging, args.log_level))  # Use the log level from args
+    
+    if not args.filepath:
+        parser.print_help()
+        parser.exit()
+        
+    total_files, deleted_count, potential_deletes, errors, preserved_files = delete_old_backups(args)
+    print_summary(total_files, deleted_count, potential_deletes, errors, preserved_files, args)
 
 if __name__ == '__main__':
     main()
