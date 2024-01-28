@@ -1,5 +1,5 @@
-# BeeKeeper - GFS Backup Retention Script
 
+# BeeKeeper - GFS Backup Retention Script
 BeeKeeper efficiently manages and deletes backups, adhering to a configurable Grandfather-Father-Son (GFS) retention policy.
 It offers precise control over backup retention periods across different levels (daily, weekly, monthly, yearly), providing a
 robust solution for optimizing disk space and maintaining essential backups.
@@ -7,6 +7,7 @@ robust solution for optimizing disk space and maintaining essential backups.
 ## Table of Contents
 - [Features](#features)
 - [Requirements](#requirements)
+- [Installation](#installation)
 - [Usage](#usage)
   - [Options](#options)
   - [Examples](#examples)
@@ -15,19 +16,20 @@ robust solution for optimizing disk space and maintaining essential backups.
 - [Copyright](#copyright)
 
 ## Features
-
-- **Flexible Backup Retention**: Configure daily, weekly, monthly, and yearly retention periods through command-line arguments.
-- **Dry Run Option**: Simulate file deletion to review what files would be deleted before actually performing the operation.
-- **Recursive Directory Traversal**: Optionally traverse directories recursively to manage backups in nested folders.
-- **Empty Folder Cleanup**: Clean up empty directories after backup files have been deleted.
+- **Selective Retention Policies**: Configure retention periods for daily, weekly, monthly, and yearly backups.
+- **Dry Run Mode**: Preview the files that would be deleted without making any changes to the system.
+- **Filename Date Extraction**: Extract dates from filenames using customizable patterns for more accurate file management.
+- **Robust Logging**: Comprehensive logging for monitoring script actions and debugging issues.
+- **Error Handling**: Gracefully handle and log errors for uninterrupted execution.
 
 ## Requirements
+- Python 3.6 or higher
+- No external dependencies required.
 
-- Python 3.6 or higher.
-- Proper permissions to access and modify the files and directories you wish to manage.
+## Installation
+Clone the repository or download the script directly. Ensure that Python 3 is installed on your system.
 
 ## Usage
-
 Run the script from the command line, providing the necessary arguments to configure the backup retention policy and other options.
 
 ```bash
@@ -35,20 +37,18 @@ Run the script from the command line, providing the necessary arguments to confi
 ```
 
 ### Options
+The script supports various command-line options for customizing its behavior:
 
-- `--max-age-daily`: Maximum age for daily backups (default: 30)
-- `--max-age-weekly`: Maximum age for weekly backups (default: 365)
-- `--max-age-monthly`: Maximum age for monthly backups (default: 1095)
-- `--max-age-yearly`: Maximum age for yearly backups (default: 3*365)
-- `--dry-run`: Dry run (does not delete files)
-- `--use-filename`: Use filename to determine file age
-- `--recursive`: Recursively search directories for files to delete
-- `--clean-folders`: Remove empty folders after file deletion (requires `--recursive`)
-- `--follow-symlinks`: Follow symbolic links (default: do not follow)
-- `--log-level`: Set the logging level (options: DEBUG, INFO, WARNING, ERROR, CRITICAL; default: INFO)
+- `filepath`: Path to the files or directories to manage.
+- `--dry-run`: Execute the script in dry run mode. No files will be deleted.
+- `--use-filename`: Use the date from the filename to determine the age of the file, instead of the file modification time.
+- `--max-age-daily DAYS`: Set the maximum age in days for daily backups. Default is 30 days.
+- `--max-age-weekly DAYS`: Set the maximum age in days for weekly backups. Default is 365 days.
+- `--max-age-monthly DAYS`: Set the maximum age in days for monthly backups. Default is 1095 days.
+- `--max-age-yearly DAYS`: Set the maximum age in days for yearly backups. Default is 3*365 days.
+- `--log-level LEVEL`: Set the logging level. Options are 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'. Default is 'INFO'.
 
 ### Examples
-
 1. **Standard Retention Policy:**
    Configure the script to:
    - Preserve all backups from the last 30 days.
@@ -83,19 +83,13 @@ Run the script from the command line, providing the necessary arguments to confi
    ```
 
 ## Notes
-
-- **File age**: File age is per default determined by its last modification time.
+- **File or directory age**: File or directory age is determined by last modification time
 - **Logging**: All operations are logged to the `beekeeper.log` file. This file contains information about the scripts operations, including files deleted and potential errors encountered.
-- **Determining file age based on filename**: When the `--use-filename` option is used, the script determines the age of a file based on a date in its name instead of the file last modification time. Script supports the following date formats in file names:
-  - `YYYYMMDD` (e.g., `backup_20240101.log`)
-  - `YYYY-MM-DD` (e.g., `backup_2024-01-01.log`)
+- **Determining file age based on filename**: When the `--use-filename` option is used, the script determines the age of a file or directory based on a date found in its name instead of last modification time. Following date formats are supported: `YYYY-MM-DD`, `YYYY_MM_DD`, `YYYYMMDD`, `YYYY-MM-DD_HH-MM`, `YYYY_MM_DD_HH_MM` and `YYYYMMDD_HHMM`
 
 ## License
-
 This script is published under the Apache License 2.0. Please see the `LICENSE` file for more details.
 
 ## Copyright
-
 © 2024 Cryptica AB. All rights reserved.
-
 For more information about Cryptica AB, please visit [https://cryptica.se](https://cryptica.se).
