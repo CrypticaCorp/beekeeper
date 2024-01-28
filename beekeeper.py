@@ -9,12 +9,19 @@ from collections import defaultdict
 def setup_logging(log_level):
     logger = logging.getLogger()
     logger.setLevel(log_level)  # Set log level based on user input
+    
+    # Check if the logger already has handlers
+    if not logger.handlers:
+        handler = logging.FileHandler('beekeeper.log')
+        handler.setLevel(log_level)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+    else:
+        # Update the log level of existing handlers
+        for handler in logger.handlers:
+            handler.setLevel(log_level)
 
-    handler = logging.FileHandler('beekeeper.log')
-    handler.setLevel(log_level)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 def get_week_num(file_date):
     return file_date.isocalendar()[1]
